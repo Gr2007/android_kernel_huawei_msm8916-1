@@ -29,18 +29,6 @@ dtb-$(CONFIG_ARCH_MSM8974) += msm8974-v1-cdp.dtb \
 	msm8974pro-ac-pm8941-mtp.dtb \
 	msm8974pro-ac-pma8084-pm8941-mtp.dtb
 ifeq ($(CONFIG_HUAWEI_KERNEL),y)
-ifeq ($(CONFIG_SUPPORT_C8817D),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_c8817d_va.dtb \
-	huawei_c8817d_vb.dtb \
-	huawei_c8817d_vc.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_C8817E),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_c8817e_va.dtb \
-	huawei_c8817e_vb.dtb \
-	huawei_c8817e_vc.dtb
-endif
 ifeq ($(CONFIG_SUPPORT_G611),y)
 dtb-$(CONFIG_ARCH_MSM8916) += \
 	huawei_g611_ul_va.dtb
@@ -90,24 +78,6 @@ dtb-$(CONFIG_ARCH_MSM8916) += \
 	huawei_g760_tl_vb.dtb \
 	huawei_g760_ul_va.dtb \
 	huawei_g760_ul_vb.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_CHERRY_CL10),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_cherry_cl10_va.dtb \
-	huawei_cherry_cl10_vb.dtb \
-	huawei_cherry_cl10_vc.dtb \
-	huawei_cherry_cl10_vd.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_CHERRY_CL20),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_cherry_cl20_va.dtb \
-	huawei_cherry_cl20_vb.dtb \
-	huawei_cherry_cl20_vc.dtb \
-	huawei_cherry_cl20_vd.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_CHERRY_L04),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_cherry_l04_va.dtb
 endif
 ifeq ($(CONFIG_SUPPORT_Y550),y)
 dtb-$(CONFIG_ARCH_MSM8916) += \
