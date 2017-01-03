@@ -29,14 +29,6 @@ dtb-$(CONFIG_ARCH_MSM8974) += msm8974-v1-cdp.dtb \
 	msm8974pro-ac-pm8941-mtp.dtb \
 	msm8974pro-ac-pma8084-pm8941-mtp.dtb
 ifeq ($(CONFIG_HUAWEI_KERNEL),y)
-ifeq ($(CONFIG_SUPPORT_G611),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_g611_ul_va.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_G619),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_g619_tl_va.dtb
-endif
 ifeq ($(CONFIG_SUPPORT_G620S),y)
 dtb-$(CONFIG_ARCH_MSM8916) += \
 	huawei_g620s_l01_va.dtb \
