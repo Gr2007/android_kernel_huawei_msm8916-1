@@ -155,6 +155,14 @@ config OV5648
 		preview set to 1296*972 at 30 fps,
 		snapshot set to 2592*1944 at 12 fps,
 		This sensor driver does not support auto focus.
+		
+config S5K5E2
+	bool "Sensor s5k5eayx (BAYER 5MP)"
+	depends on MSMB_CAMERA
+	---help---
+		Samsung 5 MP BAYER Sensor. It uses 2 mipi lanes,
+		supports 960P preview at 30 fps
+		and 2560x1920 snapshot at 15 fps.
 
 config MT9M114
 	bool "Sensor MT9M114 (YUV 1.26MP)"
