@@ -41,22 +41,6 @@ dtb-$(CONFIG_ARCH_MSM8916) += \
 	huawei_g620s_ul_vb.dtb \
 	huawei_g620s_ul_vc.dtb
 endif
-ifeq ($(CONFIG_SUPPORT_G621),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_g621_tl00_vb.dtb \
-	huawei_g621_tl_vc.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_G622),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_g622_cl_va.dtb \
-	huawei_g622_cl_vb.dtb
-endif
-ifeq ($(CONFIG_SUPPORT_G660S),y)
-dtb-$(CONFIG_ARCH_MSM8916) += \
-	huawei_g660s_cl_va.dtb \
-	huawei_g660s_tl_va.dtb \
-	huawei_g660s_ul_va.dtb
-endif
 ifeq ($(CONFIG_SUPPORT_G760),y)
 dtb-$(CONFIG_ARCH_MSM8916) += \
 	huawei_g760_l01_va.dtb \
