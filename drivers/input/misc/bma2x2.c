@@ -60,8 +60,6 @@
 #define ISR_INFO(dev, fmt, arg...)
 #endif
 
-#define BMA2X2_SENSOR_IDENTIFICATION_ENABLE
-
 #define SENSOR_NAME                 "bma2x2-accel"
 #define ABSMIN                      -512
 #define ABSMAX                      512
@@ -1375,8 +1373,6 @@ static const struct interrupt_map_t int_map[] = {
 #define POLL_INTERVAL_MAX_MS	4000
 #define POLL_DEFAULT_INTERVAL_MS 200
 
-#define MAX_RANGE_MAP	4
-
 struct bma2x2_type_map_t {
 
 	/*! bma2x2 sensor chip id */
@@ -1387,18 +1383,15 @@ struct bma2x2_type_map_t {
 
 	/*! bma2x2 sensor name */
 	const char *sensor_name;
-
-	/*! bma2x2 sensor resolution */
-	const char *resolution;
 };
 
 static const struct bma2x2_type_map_t sensor_type_map[] = {
 
-	{BMA255_CHIP_ID, BMA255_TYPE, "BMA255/254", "0.00957031"},
-	{BMA355_CHIP_ID, BMA255_TYPE, "BMA355", "0.00957031"},
-	{BMA250E_CHIP_ID, BMA250E_TYPE, "BMA250E", "0.03828125"},
-	{BMA222E_CHIP_ID, BMA222E_TYPE, "BMA222E", "0.153125"},
-	{BMA280_CHIP_ID, BMA280_TYPE, "BMA280", "0.00239258"},
+	{BMA255_CHIP_ID, BMA255_TYPE, "BMA255/254"},
+	{BMA355_CHIP_ID, BMA255_TYPE, "BMA355"},
+	{BMA250E_CHIP_ID, BMA250E_TYPE, "BMA250E"},
+	{BMA222E_CHIP_ID, BMA222E_TYPE, "BMA222E"},
+	{BMA280_CHIP_ID, BMA280_TYPE, "BMA280"},
 
 };
 
@@ -1459,7 +1452,6 @@ struct bma2x2_data {
 	atomic_t enable;
 	atomic_t selftest_result;
 	unsigned int chip_id;
-	unsigned int chip_type;
 	unsigned int fifo_count;
 	unsigned char fifo_datasel;
 	unsigned char mode;
@@ -1479,7 +1471,6 @@ struct bma2x2_data {
 	bool power_enabled;
 	unsigned char bandwidth;
 	unsigned char range;
-	int sensitivity;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -1526,7 +1517,6 @@ static int bma2x2_store_state(struct i2c_client *client,
 			struct bma2x2_data *data);
 static int bma2x2_power_ctl(struct bma2x2_data *data, bool on);
 static int bma2x2_eeprom_prog(struct i2c_client *client);
-static int bma2x2_get_sensitivity(struct bma2x2_data *bma2x2, int range);
 
 static struct sensors_classdev sensors_cdev = {
 		.name = "bma2x2-accel",
@@ -1535,7 +1525,7 @@ static struct sensors_classdev sensors_cdev = {
 		.handle = SENSORS_ACCELERATION_HANDLE,
 		.type = SENSOR_TYPE_ACCELEROMETER,
 		.max_range = "156.8",	/* 16g */
-		.resolution = "0.153125",	/* 15.6mg */
+		.resolution = "0.156",	/* 15.63mg */
 		.sensor_power = "0.13",	/* typical value */
 		.min_delay = POLL_INTERVAL_MIN_MS * 1000, /* in microseconds */
 		.max_latency = POLL_INTERVAL_MAX_MS,
@@ -1564,12 +1554,6 @@ bst_axis_remap_tab_dft[MAX_AXIS_REMAP_TAB_SZ] = {
 	{  1,    0,    2,     1,      1,     -1 }, /* P7 */
 };
 
-static const int bosch_sensor_range_map[MAX_RANGE_MAP] = {
-	0, /*2G range*/
-	1, /*4G range*/
-	2, /*8G range*/
-	3  /*16G range*/
-};
 
 static void bst_remap_sensor_data(struct bosch_sensor_data *data,
 		const struct bosch_sensor_axis_remap *remap)
@@ -1717,10 +1701,10 @@ static int bma2x2_check_chip_id(struct i2c_client *client,
 				data->sensor_type =
 					sensor_type_map[i].sensor_type;
 				data->chip_id = chip_id;
-				dev_dbg(&client->dev,
-					"Bosch Sensortec Device detected, HW IC name: %s\n",
+					dev_dbg(&client->dev,
+					"Bosch Sensortec Device detected,"
+					" HW IC name: %s\n",
 					sensor_type_map[i].sensor_name);
-				data->chip_type = i;
 				return err;
 			}
 		}
@@ -2990,7 +2974,6 @@ static int bma2x2_set_range(struct i2c_client *client, unsigned char Range)
 {
 	int comres = 0;
 	unsigned char data1;
-	struct bma2x2_data *bma2x2 = i2c_get_clientdata(client);
 
 	if ((Range == 3) || (Range == 5) || (Range == 8) || (Range == 12)) {
 		comres = bma2x2_smbus_read_byte(client, BMA2X2_RANGE_SEL_REG,
@@ -3017,7 +3000,6 @@ static int bma2x2_set_range(struct i2c_client *client, unsigned char Range)
 		}
 		comres += bma2x2_smbus_write_byte(client, BMA2X2_RANGE_SEL_REG,
 				&data1);
-		bma2x2_get_sensitivity(bma2x2, Range);
 	} else {
 		comres = -1;
 	}
@@ -4817,29 +4799,6 @@ const int bma2x2_sensor_bitwidth[] = {
 	12,  10,  8, 14
 };
 
-static int bma2x2_get_sensitivity(struct bma2x2_data *bma2x2, int range)
-{
-
-	switch (range) {
-	case BMA2X2_RANGE_2G:
-		bma2x2->sensitivity = bosch_sensor_range_map[0];
-		break;
-	case BMA2X2_RANGE_4G:
-		bma2x2->sensitivity = bosch_sensor_range_map[1];
-		break;
-	case BMA2X2_RANGE_8G:
-		bma2x2->sensitivity = bosch_sensor_range_map[2];
-		break;
-	case BMA2X2_RANGE_16G:
-		bma2x2->sensitivity = bosch_sensor_range_map[3];
-		break;
-	default:
-		bma2x2->sensitivity = bosch_sensor_range_map[0];
-		break;
-	}
-	return 0;
-}
-
 static int bma2x2_read_accel_xyz(struct i2c_client *client,
 		signed char sensor_type, struct bma2x2acc *acc)
 {
@@ -4867,6 +4826,9 @@ static int bma2x2_read_accel_xyz(struct i2c_client *client,
 #endif
 
 	bma2x2_remap_sensor_data(acc, client_data);
+	acc->x = acc->x << BMA2X2_RANGE_SHIFT;
+	acc->y = acc->y << BMA2X2_RANGE_SHIFT;
+	acc->z = acc->z << BMA2X2_RANGE_SHIFT;
 	return comres;
 }
 
@@ -4884,12 +4846,9 @@ static void bma2x2_report_axis_data(struct bma2x2_data *bma2x2)
 			"read accel data failed! err = %d\n", err);
 		return;
 	}
-	input_report_abs(bma2x2->input, ABS_X,
-			(int)acc.x << bma2x2->sensitivity);
-	input_report_abs(bma2x2->input, ABS_Y,
-			(int)acc.y << bma2x2->sensitivity);
-	input_report_abs(bma2x2->input, ABS_Z,
-			(int)acc.z << bma2x2->sensitivity);
+	input_report_abs(bma2x2->input, ABS_X, acc.x);
+	input_report_abs(bma2x2->input, ABS_Y, acc.y);
+	input_report_abs(bma2x2->input, ABS_Z, acc.z);
 	input_event(bma2x2->input, EV_SYN, SYN_TIME_SEC,
 			ktime_to_timespec(ts).tv_sec);
 	input_event(bma2x2->input, EV_SYN, SYN_TIME_NSEC,
@@ -7139,7 +7098,6 @@ static int bma2x2_probe(struct i2c_client *client,
 	mutex_init(&data->enable_mutex);
 	data->bandwidth = BMA2X2_BW_SET;
 	data->range = BMA2X2_RANGE_SET;
-	data->sensitivity = bosch_sensor_range_map[0];
 	err = bma2x2_open_init(client, data);
 	if (err < 0) {
 		err = -EINVAL;
@@ -7408,7 +7366,6 @@ static int bma2x2_probe(struct i2c_client *client,
 	data->cdev.sensors_enable = bma2x2_cdev_enable;
 	data->cdev.sensors_poll_delay = bma2x2_cdev_poll_delay;
 	data->cdev.sensors_self_test = bma2x2_self_calibration_xyz;
-	data->cdev.resolution = sensor_type_map[data->chip_type].resolution;
 	err = sensors_classdev_register(&client->dev, &data->cdev);
 	if (err) {
 		dev_err(&client->dev, "create class device file failed!\n");
