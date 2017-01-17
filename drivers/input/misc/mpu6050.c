@@ -59,6 +59,10 @@
 #define MPU6050_RAW_ACCEL_DATA_LEN	6
 #define MPU6050_RAW_GYRO_DATA_LEN	6
 
+/* Sensitivity Scale Factor */
+#define MPU6050_ACCEL_SCALE_SHIFT_2G	4
+#define MPU6050_GYRO_SCALE_SHIFT_FS0	3
+
 #define MPU6050_RESET_SLEEP_US	10
 
 #define MPU6050_DEV_NAME_ACCEL	"MPU6050-accel"
@@ -240,22 +244,6 @@ mpu6050_place_name2num[MPU6050_AXIS_REMAP_TAB_SZ] = {
 	{"Landscape Right Back Side", MPU6050_PLACE_PR_BACK},
 	{"Portrait Down Back Side", MPU6050_PLACE_LD_BACK},
 	{"Landscape Left Back Side", MPU6050_PLACE_LL_BACK},
-};
-
-/* Map gyro measurement range setting to number of bit to shift */
-static const u8 mpu_gyro_fs_shift[NUM_FSR] = {
-	GYRO_SCALE_SHIFT_FS0, /* MPU_FSR_250DPS */
-	GYRO_SCALE_SHIFT_FS1, /* MPU_FSR_500DPS */
-	GYRO_SCALE_SHIFT_FS2, /* MPU_FSR_1000DPS */
-	GYRO_SCALE_SHIFT_FS3, /* MPU_FSR_2000DPS */
-};
-
-/* Map accel measurement range setting to number of bit to shift */
-static const u8 mpu_accel_fs_shift[NUM_ACCL_FSR] = {
-	ACCEL_SCALE_SHIFT_02G, /* ACCEL_FS_02G */
-	ACCEL_SCALE_SHIFT_04G, /* ACCEL_FS_04G */
-	ACCEL_SCALE_SHIFT_08G, /* ACCEL_FS_08G */
-	ACCEL_SCALE_SHIFT_16G, /* ACCEL_FS_16G */
 };
 
 /* Function declarations */
@@ -567,18 +555,16 @@ static void mpu6050_remap_gyro_data(struct axis_data *data, int place)
 static irqreturn_t mpu6050_interrupt_thread(int irq, void *data)
 {
 	struct mpu6050_sensor *sensor = data;
-	u32 shift;
 
 	if (sensor->cfg.accel_enable) {
 		mpu6050_read_accel_data(sensor, &sensor->axis);
 		mpu6050_remap_accel_data(&sensor->axis, sensor->pdata->place);
-		shift = mpu_accel_fs_shift[sensor->cfg.accel_fs];
 		input_report_abs(sensor->accel_dev, ABS_X,
-			(sensor->axis.x >> shift));
+			(sensor->axis.x >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 		input_report_abs(sensor->accel_dev, ABS_Y,
-			(sensor->axis.y >> shift));
+			(sensor->axis.y >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 		input_report_abs(sensor->accel_dev, ABS_Z,
-			(sensor->axis.z >> shift));
+			(sensor->axis.z >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 		input_sync(sensor->accel_dev);
 	}
 
@@ -586,13 +572,12 @@ static irqreturn_t mpu6050_interrupt_thread(int irq, void *data)
 		mpu6050_read_gyro_data(sensor, &sensor->axis);
 		mpu6050_remap_gyro_data(&sensor->axis, sensor->pdata->place);
 
-		shift = mpu_gyro_fs_shift[sensor->cfg.fsr];
 		input_report_abs(sensor->gyro_dev, ABS_RX,
-			(sensor->axis.rx >> shift));
+			(sensor->axis.rx >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 		input_report_abs(sensor->gyro_dev, ABS_RY,
-			(sensor->axis.ry >> shift));
+			(sensor->axis.ry >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 		input_report_abs(sensor->gyro_dev, ABS_RZ,
-			(sensor->axis.rz >> shift));
+			(sensor->axis.rz >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 		input_sync(sensor->gyro_dev);
 	}
 
@@ -609,7 +594,6 @@ static irqreturn_t mpu6050_interrupt_thread(int irq, void *data)
 static void mpu6050_accel_work_fn(struct work_struct *work)
 {
 	struct mpu6050_sensor *sensor;
-	u32 shift;
 
 	sensor = container_of((struct delayed_work *)work,
 				struct mpu6050_sensor, accel_poll_work);
@@ -617,13 +601,12 @@ static void mpu6050_accel_work_fn(struct work_struct *work)
 	mpu6050_read_accel_data(sensor, &sensor->axis);
 	mpu6050_remap_accel_data(&sensor->axis, sensor->pdata->place);
 
-	shift = mpu_accel_fs_shift[sensor->cfg.accel_fs];
 	input_report_abs(sensor->accel_dev, ABS_X,
-		(sensor->axis.x >> shift));
+		(sensor->axis.x >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 	input_report_abs(sensor->accel_dev, ABS_Y,
-		(sensor->axis.y >> shift));
+		(sensor->axis.y >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 	input_report_abs(sensor->accel_dev, ABS_Z,
-		(sensor->axis.z >> shift));
+		(sensor->axis.z >> MPU6050_ACCEL_SCALE_SHIFT_2G));
 	input_sync(sensor->accel_dev);
 
 	if (sensor->use_poll)
@@ -641,7 +624,6 @@ static void mpu6050_accel_work_fn(struct work_struct *work)
 static void mpu6050_gyro_work_fn(struct work_struct *work)
 {
 	struct mpu6050_sensor *sensor;
-	u32 shift;
 
 	sensor = container_of((struct delayed_work *)work,
 				struct mpu6050_sensor, gyro_poll_work);
@@ -649,13 +631,12 @@ static void mpu6050_gyro_work_fn(struct work_struct *work)
 	mpu6050_read_gyro_data(sensor, &sensor->axis);
 	mpu6050_remap_gyro_data(&sensor->axis, sensor->pdata->place);
 
-	shift = mpu_gyro_fs_shift[sensor->cfg.fsr];
 	input_report_abs(sensor->gyro_dev, ABS_RX,
-		(sensor->axis.rx >> shift));
+		(sensor->axis.rx >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 	input_report_abs(sensor->gyro_dev, ABS_RY,
-		(sensor->axis.ry >> shift));
+		(sensor->axis.ry >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 	input_report_abs(sensor->gyro_dev, ABS_RZ,
-		(sensor->axis.rz >> shift));
+		(sensor->axis.rz >> MPU6050_GYRO_SCALE_SHIFT_FS0));
 	input_sync(sensor->gyro_dev);
 
 	if (sensor->use_poll)
@@ -935,7 +916,7 @@ static int mpu6050_restore_context(struct mpu6050_sensor *sensor)
 	}
 
 	ret = i2c_smbus_write_byte_data(client, reg->accel_config,
-			(sensor->cfg.accel_fs << ACCL_CONFIG_FSR_SHIFT));
+			(ACCEL_FS_02G << ACCL_CONFIG_FSR_SHIFT));
 	if (ret < 0) {
 		dev_err(&client->dev, "update accel_fs failed.\n");
 		goto exit;
