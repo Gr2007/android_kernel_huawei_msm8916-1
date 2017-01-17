@@ -1,7 +1,7 @@
 /*
  * MPU6050 6-axis gyroscope + accelerometer driver
  *
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -145,7 +145,6 @@ struct mpu6050_sensor {
 	struct mpu6050_platform_data *pdata;
 	struct mutex op_lock;
 	enum inv_devices chip_type;
-	struct workqueue_struct *data_wq;
 	struct delayed_work accel_poll_work;
 	struct delayed_work gyro_poll_work;
 	struct delayed_work fifo_flush_work;
@@ -710,8 +709,7 @@ static void mpu6050_sche_next_flush(struct mpu6050_sensor *sensor)
 		latency = 0;
 
 	if (latency != 0)
-		queue_delayed_work(sensor->data_wq,
-			&sensor->fifo_flush_work,
+		schedule_delayed_work(&sensor->fifo_flush_work,
 			msecs_to_jiffies(latency));
 	else
 		dev_err(&sensor->client->dev,
@@ -777,8 +775,7 @@ static void mpu6050_accel_work_fn(struct work_struct *work)
 	input_sync(sensor->accel_dev);
 
 	if (atomic_read(&sensor->accel_en))
-		queue_delayed_work(sensor->data_wq,
-			&sensor->accel_poll_work,
+		schedule_delayed_work(&sensor->accel_poll_work,
 			msecs_to_jiffies(sensor->accel_poll_ms));
 }
 
@@ -818,8 +815,7 @@ static void mpu6050_gyro_work_fn(struct work_struct *work)
 	input_sync(sensor->gyro_dev);
 
 	if (atomic_read(&sensor->gyro_en))
-		queue_delayed_work(sensor->data_wq,
-			&sensor->gyro_poll_work,
+		schedule_delayed_work(&sensor->gyro_poll_work,
 			msecs_to_jiffies(sensor->gyro_poll_ms));
 }
 
@@ -1231,8 +1227,7 @@ static int mpu6050_gyro_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				else
 					latency = sensor->gyro_latency_ms;
 			}
-			queue_delayed_work(sensor->data_wq,
-					&sensor->fifo_flush_work,
+			schedule_delayed_work(&sensor->fifo_flush_work,
 					msecs_to_jiffies(latency));
 			ret = mpu6050_set_fifo_int(sensor,
 				sensor->cfg.accel_enable, true);
@@ -1249,8 +1244,7 @@ static int mpu6050_gyro_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				sensor->cfg.int_enabled = true;
 			}
 		} else {
-			queue_delayed_work(sensor->data_wq,
-				&sensor->gyro_poll_work,
+			schedule_delayed_work(&sensor->gyro_poll_work,
 				msecs_to_jiffies(sensor->gyro_poll_ms));
 		}
 		atomic_set(&sensor->gyro_en, 1);
@@ -1282,8 +1276,7 @@ static int mpu6050_gyro_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				cancel_delayed_work_sync(
 					&sensor->fifo_flush_work);
 				latency = sensor->accel_latency_ms;
-				queue_delayed_work(sensor->data_wq,
-					&sensor->fifo_flush_work,
+				schedule_delayed_work(&sensor->fifo_flush_work,
 					msecs_to_jiffies(latency));
 			}
 			sensor->batch_gyro = false;
@@ -1658,8 +1651,7 @@ static int mpu6050_gyro_set_poll_delay(struct mpu6050_sensor *sensor,
 	sensor->gyro_poll_ms = delay;
 	if (sensor->use_poll) {
 		cancel_delayed_work_sync(&sensor->gyro_poll_work);
-		queue_delayed_work(sensor->data_wq,
-				&sensor->gyro_poll_work,
+		schedule_delayed_work(&sensor->gyro_poll_work,
 				msecs_to_jiffies(sensor->gyro_poll_ms));
 	} else {
 		ret = mpu6050_config_sample_rate(sensor);
@@ -1921,8 +1913,7 @@ static int mpu6050_accel_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				else
 					latency = sensor->gyro_latency_ms;
 			}
-			queue_delayed_work(sensor->data_wq,
-					&sensor->fifo_flush_work,
+			schedule_delayed_work(&sensor->fifo_flush_work,
 					msecs_to_jiffies(latency));
 			ret = mpu6050_set_fifo_int(sensor,
 				true, sensor->cfg.gyro_enable);
@@ -1939,8 +1930,7 @@ static int mpu6050_accel_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				sensor->cfg.int_enabled = true;
 			}
 		} else {
-			queue_delayed_work(sensor->data_wq,
-				&sensor->accel_poll_work,
+			schedule_delayed_work(&sensor->accel_poll_work,
 				msecs_to_jiffies(sensor->accel_poll_ms));
 		}
 		atomic_set(&sensor->accel_en, 1);
@@ -1972,8 +1962,7 @@ static int mpu6050_accel_set_enable(struct mpu6050_sensor *sensor, bool enable)
 				cancel_delayed_work_sync(
 					&sensor->fifo_flush_work);
 				latency = sensor->gyro_latency_ms;
-				queue_delayed_work(sensor->data_wq,
-					&sensor->fifo_flush_work,
+				schedule_delayed_work(&sensor->fifo_flush_work,
 					msecs_to_jiffies(latency));
 			}
 			sensor->batch_accel = false;
@@ -2011,8 +2000,7 @@ static int mpu6050_accel_set_poll_delay(struct mpu6050_sensor *sensor,
 
 	if (sensor->use_poll) {
 		cancel_delayed_work_sync(&sensor->accel_poll_work);
-		queue_delayed_work(sensor->data_wq,
-				&sensor->accel_poll_work,
+		schedule_delayed_work(&sensor->accel_poll_work,
 				msecs_to_jiffies(sensor->accel_poll_ms));
 	} else {
 		ret = mpu6050_config_sample_rate(sensor);
@@ -2748,31 +2736,29 @@ static int mpu6050_probe(struct i2c_client *client,
 			"Polling mode is enabled. use_int=%d gpio_int=%d",
 			sensor->pdata->use_int, sensor->pdata->gpio_int);
 	}
-	sensor->data_wq = create_freezable_workqueue("mpu6050_data_work");
-	if (!sensor->data_wq) {
-		dev_err(&client->dev, "Cannot create workqueue!\n");
-		goto err_free_gpio;
-	}
+	INIT_DELAYED_WORK(&sensor->fifo_flush_work,
+			mpu6050_fifo_flush_fn);
+	INIT_DELAYED_WORK(&sensor->accel_poll_work,
+		mpu6050_accel_work_fn);
+	INIT_DELAYED_WORK(&sensor->gyro_poll_work,
+		mpu6050_gyro_work_fn);
 
-	INIT_DELAYED_WORK(&sensor->fifo_flush_work, mpu6050_fifo_flush_fn);
-	INIT_DELAYED_WORK(&sensor->accel_poll_work, mpu6050_accel_work_fn);
-	INIT_DELAYED_WORK(&sensor->gyro_poll_work, mpu6050_gyro_work_fn);
 
 	ret = input_register_device(sensor->accel_dev);
 	if (ret) {
 		dev_err(&client->dev, "Failed to register input device\n");
-		goto err_destroy_workqueue;
+		goto err_free_irq;
 	}
 	ret = input_register_device(sensor->gyro_dev);
 	if (ret) {
 		dev_err(&client->dev, "Failed to register input device\n");
-		goto err_destroy_workqueue;
+		goto err_free_irq;
 	}
 
 	ret = create_accel_sysfs_interfaces(&sensor->accel_dev->dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to create sysfs for accel\n");
-		goto err_destroy_workqueue;
+		goto err_free_irq;
 	}
 	ret = create_gyro_sysfs_interfaces(&sensor->gyro_dev->dev);
 	if (ret < 0) {
@@ -2832,8 +2818,7 @@ err_remove_gyro_sysfs:
 	remove_accel_sysfs_interfaces(&sensor->gyro_dev->dev);
 err_remove_accel_sysfs:
 	remove_accel_sysfs_interfaces(&sensor->accel_dev->dev);
-err_destroy_workqueue:
-	destroy_workqueue(sensor->data_wq);
+err_free_irq:
 	if (client->irq > 0)
 		free_irq(client->irq, sensor);
 err_free_gpio:
@@ -2867,7 +2852,6 @@ static int mpu6050_remove(struct i2c_client *client)
 	sensors_classdev_unregister(&sensor->gyro_cdev);
 	remove_gyro_sysfs_interfaces(&sensor->gyro_dev->dev);
 	remove_accel_sysfs_interfaces(&sensor->accel_dev->dev);
-	destroy_workqueue(sensor->data_wq);
 	if (client->irq > 0)
 		free_irq(client->irq, sensor);
 	if ((sensor->pdata->use_int) &&
@@ -3005,8 +2989,7 @@ static int mpu6050_resume(struct device *dev)
 		}
 
 		if (sensor->use_poll) {
-			queue_delayed_work(sensor->data_wq,
-				&sensor->gyro_poll_work,
+			schedule_delayed_work(&sensor->gyro_poll_work,
 				msecs_to_jiffies(sensor->gyro_poll_ms));
 		}
 	}
@@ -3019,8 +3002,7 @@ static int mpu6050_resume(struct device *dev)
 		}
 
 		if (sensor->use_poll) {
-			queue_delayed_work(sensor->data_wq,
-				&sensor->accel_poll_work,
+			schedule_delayed_work(&sensor->accel_poll_work,
 				msecs_to_jiffies(sensor->accel_poll_ms));
 		}
 	}
