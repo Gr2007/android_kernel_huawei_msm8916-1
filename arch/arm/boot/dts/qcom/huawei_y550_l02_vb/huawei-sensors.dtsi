@@ -202,7 +202,7 @@
 		reg = <0x1e>;
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l6>;
-		/*1 is bottom and others means top*/
+		gs,int1_gpio = <&msm_gpio 115 0x2002>;
 		gs,direct = <0>;
 		gs,min_interval = <5>;
 		gs,poll_interval = <200>;
